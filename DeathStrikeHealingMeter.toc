@@ -1,0 +1,10 @@
+## Interface: 40400
+## Title: Death Strike Healing Meter
+## Notes: Tracks and shows the expected heal from Death Strike
+## SavedVariables: DeathStrikeHealingMeterDB
+## Author: Vstagge
+## Version: 1.0
+
+Libs/LibSharedMedia-3.0/LibSharedMedia-3.0.lua
+DeathStrikeHealingOptions.lua
+DeathStrikeHealingMeter.lua
