@@ -10,8 +10,6 @@ local heal = 0
 local min_heal = 0
 local max_heal = 1
 local max_health = UnitHealthMax("player")
-local progress = 0
-local max_progress = 1
 
 -- Create healing modifiers
 local ds_modifier = 1
@@ -107,74 +105,12 @@ local function RedrawBar()
     end
 end
 
-
--- Function to update the progress values of the bar
-local function update_progress()
-    if not damage_taken then return end
-
-    local heal_from_damage = damage_taken * 0.2 * get_heal_modifier()
-    local _heal = min_heal * get_min_heal_modifier()
-
-    if heal_from_damage > _heal then
-        _heal = heal_from_damage
-    end
-    heal = _heal
-
-    progress = floor(heal_from_damage)
-    max_progress = floor(max_heal)
-
-    bar:SetMinMaxValues(0, max_progress)
-    bar:SetValue(progress)
-end
-
 local function format_number(value)
     local text = string.format("%d", value)
     if value > 1000 then
         text = string.format("%dk", value / 1000)
     end
     return text
-end
-
-local function update_heal_frame(value)
-    if not value then
-        frame.text:SetText("")
-        frame.text:Hide()
-        frame.text.animations:Stop()
-        frame.text:SetFont("Fonts/FRIZQT__.TTF", core.config.HEAL_TEXT_FONT_SIZE, "OUTLINE")
-        return
-    end
-    frame.text.animations:Play()
-    frame.text:SetText(format_number(value))
-    if heal > core.config.LARGE_HEAL_THRESHOLD * max_health then
-        frame.text:SetFont("Fonts/FRIZQT__.TTF", core.config.HEAL_TEXT_LARGE_FONT_SIZE, "OUTLINE")
-    end
-    frame.text:Show()
-end
-
--- Function to update the damage bar
-local function UpdateBar()
-    update_progress()
-
-    -- Update the text on the bar
-    bar.text:SetText(format_number(heal))
-
-    bar:Show()
-end
-
-
-local function print_table(...)
-    -- Get the total number of arguments
-    local numArgs = select("#", ...)
-    local result = {}
-
-    for i = 1, numArgs do
-        -- `select(i, ...)` returns the i-th argument
-        local value = select(i, ...)
-        table.insert(result, tostring(value))  -- Convert the value to a string and insert it into the table
-    end
-
-    -- Concatenate the values in the result table with commas and print the result
-    print(table.concat(result, ", "))
 end
 
 
@@ -198,10 +134,10 @@ local function update_damage(event)
         end
     elseif sub_event == "SPELL_HEAL" then
         if "Death Strike" == event_list[13] then
-            update_heal_frame(event_list[15])
+            frame.text:UpdateHealText(event_list[15])
 
             C_Timer.After(1, function() 
-                update_heal_frame(nil)
+                frame.text:UpdateHealText(nil)
             end)
         end
     elseif sub_event == "SWING_DAMAGE" then
@@ -215,6 +151,7 @@ local function update_damage(event)
         C_Timer.After(core.config.WINDOW_TIME,
             function()
                 damage_taken = damage_taken - damage
+                bar:UpdateBar()
         end)
     end
 
@@ -244,6 +181,10 @@ local function update_on_event(self, event, ...)
 
     end
 
+    if changed then
+        bar:UpdateBar()
+    end
+
     return changed
 end
 
@@ -270,7 +211,30 @@ core.CreateMeterFrame = function()
 
     -- OnUpdate script to update buff durations in real-time
     frame:SetScript("OnUpdate", function(self, elapsed)
-        UpdateBar()  -- Call the update function every frame
+          -- Call the update function every frame
+    end)
+
+    -- Drag functionality
+    bar:SetScript("OnDragStart", function(self)
+
+        if not core.config.UNLOCK_MOVING_BAR then
+            return
+        end
+
+        bar:StartMoving()
+    end)
+
+    bar:SetScript("OnDragStop", function(self)
+
+        if not core.config.UNLOCK_MOVING_BAR then
+            return
+        end
+
+        bar:StopMovingOrSizing()
+        -- Optionally save the new position for future use
+        local point, parent, relativePoint, xOffset, yOffset = self:GetPoint()
+        core.config.BAR_POINT_X = xOffset
+        core.config.BAR_POINT_Y = yOffset
     end)
 
     -- Register events to track buffs
@@ -280,5 +244,68 @@ core.CreateMeterFrame = function()
     frame:RegisterEvent("PLAYER_REGEN_ENABLED")
     frame:RegisterEvent("PLAYER_REGEN_DISABLED")
 
+    -- Function to update the progress values of the bar
+    bar.UpdateProgress = function(self)
+        if not damage_taken then return end
+
+        local heal_from_damage = damage_taken * 0.2 * get_heal_modifier()
+        local _heal = min_heal * get_min_heal_modifier()
+
+        if heal_from_damage > _heal then
+            _heal = heal_from_damage
+        end
+        heal = _heal
+
+        local progress = floor(heal_from_damage)
+        local max_progress = floor(max_heal)
+
+        self:SetMinMaxValues(0, max_progress)
+        self:SetValue(progress)
+    end
+
+    bar.UpdatePredictionText = function(self)
+        self.text:SetText(format_number(heal))
+    end
+
+    -- Function to update the damage bar
+    bar.UpdateBar = function(self)
+
+        -- Update the progress of the bar
+        bar:UpdateProgress()
+
+        -- Update the text on the bar
+        bar:UpdatePredictionText()
+
+        bar:Show()
+    end
+
+    frame.text.UpdateHealText = function(self, value)
+        if not value then
+            self:SetText("")
+            self:Hide()
+            self.animations:Stop()
+            self:SetFont("Fonts/FRIZQT__.TTF", core.config.HEAL_TEXT_FONT_SIZE, "OUTLINE")
+            return
+        end
+        self.animations:Play()
+        self:SetText(format_number(value))
+        if heal > core.config.LARGE_HEAL_THRESHOLD * max_health then
+            self:SetFont("Fonts/FRIZQT__.TTF", core.config.HEAL_TEXT_LARGE_FONT_SIZE, "OUTLINE")
+        end
+        self:Show()
+    end
+
     core.created = true
+end
+
+-- Make the frame draggable
+core.unlock_frame = function(enabled)
+
+    bar:SetMovable(enabled)
+    bar:EnableMouse(enabled)
+    if enabled then
+        bar:RegisterForDrag("LeftButton")
+    else
+        bar:RegisterForDrag()
+    end
 end
