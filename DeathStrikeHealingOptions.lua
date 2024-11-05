@@ -3,23 +3,25 @@ local ADDON_NAME, core = ...;
 -- Load LibSharedMedia
 core.LSM = LibStub("LibSharedMedia-3.0")
 
-core.default_config = {
-    UNLOCK_MOVING_BAR = false,
-    BAR_POINT_X = -229,
-    BAR_POINT_Y = -42,
-    BAR_WIDTH = 130,
-    BAR_HEIGHT = 30,
-    BAR_WIDTH_MAXIMUM_HEALTH = 0.4,
-    OUT_OF_COMBAT_ALPHA = 0.5,
-    IN_COMBAT_ALPHA = 1,
-    LARGE_HEAL_THRESHOLD = 0.22,
-    WINDOW_TIME = 5,
-    BAR_BACKGROUND_ALPHA = 0.4,
-    PREDICTION_TEXT_FONT_SIZE = 16,
-    HEAL_TEXT_FONT_SIZE = 20,
-    HEAL_TEXT_LARGE_FONT_SIZE = 24,
-    BAR_TEXTURE = "DGround",
+core.configOptions = {
+    UNLOCK_MOVING_BAR = { type = "checkbox", label = "Unlock the Frame (move it)", default = false },
+    BAR_WIDTH = { type = "float", label = "Bar Width", default = 130 },
+    BAR_HEIGHT = { type = "float", label = "Bar Height", default = 30 },
+    BAR_WIDTH_MAXIMUM_HEALTH = { type = "float", label = "Bar Width (Max Health)", default = 0.4 },
+    OUT_OF_COMBAT_ALPHA = { type = "float", label = "Out of Combat Alpha", default = 0.5 },
+    IN_COMBAT_ALPHA = { type = "float", label = "In Combat Alpha", default = 1 },
+    LARGE_HEAL_THRESHOLD = { type = "float", label = "Large Heal Threshold", default = 0.22 },
+    WINDOW_TIME = { type = "float", label = "Damage Window (seconds)", default = 5 },
+    BAR_POINT_X = { type = "float", label = "Bar Position X", default = -229 },
+    BAR_POINT_Y = { type = "float", label = "Bar Position Y", default = -42 },
+    BAR_BACKGROUND_ALPHA = { type = "float", label = "Bar Background Alpha", default = 0.4 },
+    PREDICTION_TEXT_FONT_SIZE = { type = "float", label = "Text Prediction Size", default = 16 },
+    HEAL_TEXT_FONT_SIZE = { type = "float", label = "Text Heal Size", default = 20 },
+    HEAL_TEXT_LARGE_FONT_SIZE = { type = "float", label = "Text Large Heal Size", default = 24 },
+    BAR_TEXTURE = { type = "string", label = "Bar Texture (or default)", default = "DGround" },
+    ANIMATION_DIRECTION = { type = "dropdown", label = "Animation", options = { "UP", "DOWN", "RIGHT", "LEFT" }, default = "RIGHT" },
 }
+
 core.config = {}
 core.created = false
 core.default_texture_path = "Interface/Addons/DeathStrikeHealingMeter/Media/statusbar/bar_background.tga"
@@ -34,16 +36,15 @@ local function LoadConfig()
     end
 
     -- Load saved values into core.config, falling back to defaults for missing values
-    core.config = {}
-    for key, value in pairs(core.default_config) do
-        core.config[key] = DeathStrikeHealingMeterDB[key] or value
+    for key, option in pairs(core.configOptions) do
+        core.config[key] = DeathStrikeHealingMeterDB[key] or option.default
     end
 end
 
 -- Function to save the current config into the SavedVariables table
 local function SaveConfig()
-    for key, value in pairs(core.config) do
-        DeathStrikeHealingMeterDB[key] = value
+    for key, table in pairs(core.config) do
+        DeathStrikeHealingMeterDB[key] = table.value or table.default
     end
 end
 
@@ -62,7 +63,7 @@ local function CreateFloatOption(labelText, configKey)
     input:SetJustifyH("CENTER")
 
     input:SetScript("OnEnterPressed", function(self)
-        core.config[configKey] = tonumber(self:GetText()) or core.config[configKey]
+        core.config[configKey].value = tonumber(self:GetText()) or core.config[configKey].value
         self:ClearFocus()
         core.RedrawMeterFrame()
     end)
@@ -80,6 +81,7 @@ local function CreateStringOption(labelText, configKey)
     local label = content:CreateFontString(nil, "ARTWORK", "GameFontNormal")
     label:SetPoint("TOPLEFT", content.title, "BOTTOMLEFT", 0, content.current_position_y)
     label:SetText(labelText)
+    content.current_position_y = content.current_position_y - 40
 
     local input = CreateFrame("EditBox", nil, content, "InputBoxTemplate")
     input:SetPoint("LEFT", label, "LEFT", 200, 0)
@@ -93,11 +95,46 @@ local function CreateStringOption(labelText, configKey)
         core.RedrawMeterFrame()
     end)
 
-    content.current_position_y = content.current_position_y - 40
     content["option__"..configKey] = input
 
     return input
 end
+
+
+-- Create a dropdown menu function
+    local function CreateDropdownOption(labelText, configKey, items)
+        local content = frame.scroll.content
+
+        -- Label for the dropdown
+        local label = content:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+        label:SetPoint("TOPLEFT", content.title, "BOTTOMLEFT", 0, content.current_position_y)
+        label:SetText(labelText)
+
+        -- Create the dropdown
+        local dropdown = CreateFrame("Frame", "DeathStrikeHealingOptionsDropdown_"..configKey, content, "UIDropDownMenuTemplate")
+        dropdown:SetPoint("LEFT", label, "LEFT", 200, 0)
+
+        UIDropDownMenu_SetWidth(dropdown, 150)
+        UIDropDownMenu_SetText(dropdown, core.config[configKey] or "Select an option")
+
+        -- Initialize the dropdown menu
+        UIDropDownMenu_Initialize(dropdown, function(self, level, menuList)
+            local info = UIDropDownMenu_CreateInfo()
+            for _, item in ipairs(items) do
+                info.text = item
+                info.func = function()
+                    UIDropDownMenu_SetSelectedName(dropdown, item)
+                    core.config[configKey] = item  -- Save selection to config
+                end
+                UIDropDownMenu_AddButton(info)
+            end
+        end)
+
+        -- Adjust position for the next item
+        content.current_position_y = content.current_position_y - 50
+        content["option__"..configKey] = dropdown
+    end
+
 
 
 -- Helper function to create string edit boxes
@@ -114,7 +151,7 @@ local function CreateCheckBoxOption(labelText, configKey)
 
     input:SetScript("OnClick", function(self)
         core.config.UNLOCK_MOVING_BAR = self:GetChecked()
-        core.unlock_content(core.config.UNLOCK_MOVING_BAR)
+        core.unlock_frame(core.config.UNLOCK_MOVING_BAR)
     end)
 
     content.current_position_y = content.current_position_y - 40
@@ -149,7 +186,9 @@ local function CreateOptionsFrame()
     frame:SetScript("OnShow", function()
         -- Update each input's editbox with the current value from core.config
         for configKey, _ in pairs(core.config) do
-            frame.scroll.content["option__"..configKey]:SetText(tostring(core.config[configKey]))
+            if frame.scroll.content["option__"..configKey].SetText then
+                frame.scroll.content["option__"..configKey]:SetText(tostring(core.config[configKey]))
+            end
         end
     end)
 
@@ -197,6 +236,7 @@ local function CreateOptionsFrame()
     CreateFloatOption("Text Heal Size:", "HEAL_TEXT_FONT_SIZE")
     CreateFloatOption("Text Large Heal Size:", "HEAL_TEXT_LARGE_FONT_SIZE")
     CreateStringOption("Bar Texture (or default):", "BAR_TEXTURE")
+    CreateDropdownOption("Animation:", "ANIMATION_DIRECTION", { "UP", "DOWN", "RIGHT", "LEFT" })
 
     -- Adjust Content Height for Scrolling
     frame.scroll.content:SetHeight(40 + math.abs(frame.scroll.content.current_position_y))
@@ -207,55 +247,7 @@ local function CreateOptionsFrame()
 end
 
 -- Call the function to create the options frame
-CreateOptionsFrame()
-
-
-local panel = CreateFrame("Frame", "MyAddonOptionsPanel", UIParent)
-panel.name = ADDON_NAME
-
-local config2 = {}
-
--- Scroll Frame Setup
-local scrollFrame = CreateFrame("ScrollFrame", "MyAddonScrollFrame", panel, "UIPanelScrollFrameTemplate")
-scrollFrame:SetPoint("TOPLEFT", 16, -16)
-scrollFrame:SetPoint("BOTTOMRIGHT", -36, 16)
-
--- Inner Content Frame
-local content = CreateFrame("Frame", nil, scrollFrame)
-content:SetSize(1, 1)  -- Content will dynamically adjust size as elements are added
-scrollFrame:SetScrollChild(content)
-
--- Title for the panel
-local title = content:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-title:SetPoint("TOPLEFT", 16, -16)
-title:SetText("My Addon Options")
-
--- Example Options: Adding multiple fields to demonstrate scrolling
-local options = {}
-local numOptions = 20  -- For demonstration, we'll create a large number of options
-
-for i = 1, numOptions do
-    -- Example EditBox for float values
-    local editBox = CreateFrame("EditBox", nil, content, "InputBoxTemplate")
-    editBox:SetSize(200, 25)
-    editBox:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -40 * i)
-    editBox:SetAutoFocus(false)
-    editBox:SetText(tostring(config2["Option"..i] or 0))
-
-    editBox:SetScript("OnTextChanged", function(self)
-        config2["Option"..i] = tonumber(self:GetText())
-    end)
-
-    local label = content:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    label:SetPoint("LEFT", editBox, "RIGHT", 10, 0)
-    label:SetText("Option " .. i)
-
-    options[i] = { label = label, editBox = editBox }
+local _, class_name, _ = UnitClass("player");
+if class_name == "DEATHKNIGHT" then
+    CreateOptionsFrame()
 end
-
--- Adjust Content Height for Scrolling
-local totalHeight = 40 * numOptions + 40  -- Adjust based on option elements
-content:SetHeight(totalHeight)
--- Register the panel in the Blizzard Interface Options
-local category, _ = Settings.RegisterCanvasLayoutCategory(panel, panel.name)
-Settings.RegisterAddOnCategory(category)

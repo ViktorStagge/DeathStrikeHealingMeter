@@ -42,8 +42,6 @@ local function RedrawHealFrame()
 
         frame.text:SetFont("Fonts/FRIZQT__.TTF", core.config.HEAL_TEXT_FONT_SIZE, "OUTLINE")
         frame.text:SetTextColor(0.1765, 0.9765, 0)
-        frame.text:SetPoint("LEFT", bar, "RIGHT", -15, 0)
-        frame.text:SetJustifyH("LEFT")
 
         -- Create an Animation Group
         frame.text.animations = frame.text:CreateAnimationGroup()
@@ -52,8 +50,23 @@ local function RedrawHealFrame()
         local animation = frame.text.animations:CreateAnimation("Translation")
         animation:SetOrder(1)
         animation:SetDuration(0.2)           -- Duration of the animation in seconds
-        animation:SetOffset(30, 0)
-        --animation:SetSmoothing("NONE")    -- No smoothing for a linear motion
+        if core.config.ANIMATION_DIRECTION == "RIGHT" then
+            frame.text:SetPoint("LEFT", bar, "RIGHT", -15, 0)
+            frame.text:SetJustifyH("LEFT")
+            animation:SetOffset(30, 0)
+        elseif core.config.ANIMATION_DIRECTION == "UP" then
+            frame.text:SetPoint("RIGHT", bar, "RIGHT", 0, 0)
+            frame.text:SetJustifyH("LEFT")
+            animation:SetOffset(0, core.config.BAR_HEIGHT)
+        elseif core.config.ANIMATION_DIRECTION == "DOWN" then
+            frame.text:SetPoint("RIGHT", bar, "RIGHT", 0, 0)
+            frame.text:SetJustifyH("LEFT")
+            animation:SetOffset(0, -core.config.BAR_HEIGHT)
+        elseif core.config.ANIMATION_DIRECTION == "LEFT" then
+            frame.text:SetPoint("LEFT", bar, "RIGHT", -15, 0)
+            frame.text:SetJustifyH("LEFT")
+            animation:SetOffset(- core.config.BAR_WIDTH - 30, 0)
+        end
 
         -- Create a Pause Animation
         local pause = frame.text.animations:CreateAnimation("Animation")
