@@ -1,4 +1,4 @@
-## Interface: 40400
+## Interface: 40401
 ## Title: Death Strike Healing Meter
 ## Notes: Tracks and shows the expected heal from Death Strike
 ## SavedVariables: DeathStrikeHealingMeterDB
