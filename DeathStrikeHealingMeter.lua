@@ -14,6 +14,7 @@ local max_health = UnitHealthMax("player")
 -- Create healing modifiers
 local ds_modifier = 1
 local vampiric_blood = 1
+local luck_of_the_draw = 1
 local name, _, _, _, rank, _, _, _, _, _ = GetTalentInfo(1, 12)
 if name and name == "Improved Death Strike" then
     ds_modifier = rank * 0.15 + 1
@@ -29,31 +30,42 @@ local function update_player_health()
 end
 
 local function get_heal_modifier()
-    return ds_modifier * vampiric_blood
+    return ds_modifier * vampiric_blood * luck_of_the_draw
 end
 
 local function get_min_heal_modifier()
-    return vampiric_blood
+    return vampiric_blood * luck_of_the_draw
 end
 
 
 local function RedrawHealFrame()
     if frame.text then
 
+        frame.text:ClearAllPoints()
         frame.text:SetFont("Fonts/FRIZQT__.TTF", core.config.HEAL_TEXT_FONT_SIZE, "OUTLINE")
         frame.text:SetTextColor(0.1765, 0.9765, 0)
 
-        -- Create an Animation Group
-        frame.text.animations = frame.text:CreateAnimationGroup()
+        -- Clear existing animations if they already exist to avoid overlapping
+        if frame.text.animations then
+            frame.text.animations:Stop()           -- Stop the current animation
+            frame.text.animations:Finish()         -- Clear the animation state
+            frame.text.animations = nil            -- Reset to avoid recreating
+        end
+
+        -- Create an Animation Group only if it doesn't exist
+        frame.text.animations = frame.text.animations or frame.text:CreateAnimationGroup()
 
         -- Create the Animation
         local animation = frame.text.animations:CreateAnimation("Translation")
         animation:SetOrder(1)
         animation:SetDuration(0.2)           -- Duration of the animation in seconds
+
+        -- Set Position and Offset based on the selected animation direction
         if core.config.ANIMATION_DIRECTION == "RIGHT" then
             frame.text:SetPoint("LEFT", bar, "RIGHT", -15, 0)
             frame.text:SetJustifyH("LEFT")
-            animation:SetOffset(30, 0)
+            frame.text:SetWidth(core.config.BAR_WIDTH + 50)  -- Increase width to accommodate text moving to the right
+            animation:SetOffset(18, 0)
         elseif core.config.ANIMATION_DIRECTION == "UP" then
             frame.text:SetPoint("RIGHT", bar, "RIGHT", 0, 0)
             frame.text:SetJustifyH("LEFT")
@@ -63,9 +75,10 @@ local function RedrawHealFrame()
             frame.text:SetJustifyH("LEFT")
             animation:SetOffset(0, -core.config.BAR_HEIGHT)
         elseif core.config.ANIMATION_DIRECTION == "LEFT" then
-            frame.text:SetPoint("LEFT", bar, "RIGHT", -15, 0)
+            frame.text:SetPoint("LEFT", bar, "RIGHT", 0, 0)
             frame.text:SetJustifyH("LEFT")
-            animation:SetOffset(- core.config.BAR_WIDTH - 30, 0)
+            frame.text:SetWidth(core.config.BAR_WIDTH + 50)  -- Width adjustment for leftward animation
+            animation:SetOffset(-core.config.BAR_WIDTH - 40, 0)
         end
 
         -- Create a Pause Animation
@@ -127,80 +140,6 @@ local function format_number(value)
 end
 
 
-local function update_damage(event)
-    local event_list = {CombatLogGetCurrentEventInfo()}
-    local sub_event = event_list[2]
-    local dest_GUID = event_list[8]
-
-    if dest_GUID ~= UnitGUID("player") then
-        return false
-    end
-
-    local damage
-    if sub_event == "SPELL_AURA_APPLIED" then
-        if "Vampiric Blood" == event_list[13] then
-            vampiric_blood = 1.25
-        end
-    elseif sub_event == "SPELL_AURA_REMOVED" then
-        if "Vampiric Blood" == event_list[13] then
-            vampiric_blood = 1
-        end
-    elseif sub_event == "SPELL_HEAL" then
-        if "Death Strike" == event_list[13] then
-            frame.text:UpdateHealText(event_list[15])
-
-            C_Timer.After(1, function() 
-                frame.text:UpdateHealText(nil)
-            end)
-        end
-    elseif sub_event == "SWING_DAMAGE" then
-        damage = event_list[12]
-    elseif sub_event == "SPELL_DAMAGE" or sub_event == "SPELL_PERIODIC_DAMAGE" then
-        damage = event_list[15]
-    end
-
-    if damage then
-        damage_taken = damage_taken + damage
-        C_Timer.After(core.config.WINDOW_TIME,
-            function()
-                damage_taken = damage_taken - damage
-                bar:UpdateBar()
-        end)
-    end
-
-    return true
-end
-
-
-local function update_on_event(self, event, ...)
-
-    local changed = true
-    if event == "COMBAT_LOG_EVENT_UNFILTERED" then
-        changed = update_damage(event)
-
-    elseif event == "UNIT_MAXHEALTH" then
-        update_player_health()
-
-    elseif event == "PLAYER_ENTERING_WORLD" then
-        update_player_health()
-        damage_taken = 0
-        frame:SetAlpha(core.config.OUT_OF_COMBAT_ALPHA)
-
-    elseif event == "PLAYER_REGEN_ENABLED" then
-        frame:SetAlpha(core.config.OUT_OF_COMBAT_ALPHA)
-
-    elseif event == "PLAYER_REGEN_DISABLED" then
-        frame:SetAlpha(core.config.IN_COMBAT_ALPHA)
-
-    end
-
-    if changed then
-        bar:UpdateBar()
-    end
-
-    return changed
-end
-
 core.RedrawMeterFrame = function()
     update_player_health()
     RedrawBar()
@@ -216,46 +155,6 @@ core.CreateMeterFrame = function()
     bar = frame.bar
     bar.text = bar:CreateFontString(nil, "OVERLAY")
     bar.min_text = bar:CreateFontString(nil, "OVERLAY")
-
-    core.RedrawMeterFrame()
-
-    -- Event handler for when buffs are updated
-    frame:SetScript("OnEvent", update_on_event)
-
-    -- OnUpdate script to update buff durations in real-time
-    frame:SetScript("OnUpdate", function(self, elapsed)
-          -- Call the update function every frame
-    end)
-
-    -- Drag functionality
-    bar:SetScript("OnDragStart", function(self)
-
-        if not core.config.UNLOCK_MOVING_BAR then
-            return
-        end
-
-        bar:StartMoving()
-    end)
-
-    bar:SetScript("OnDragStop", function(self)
-
-        if not core.config.UNLOCK_MOVING_BAR then
-            return
-        end
-
-        bar:StopMovingOrSizing()
-        -- Optionally save the new position for future use
-        local point, parent, relativePoint, xOffset, yOffset = self:GetPoint()
-        core.config.BAR_POINT_X = xOffset
-        core.config.BAR_POINT_Y = yOffset
-    end)
-
-    -- Register events to track buffs
-    frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-    frame:RegisterEvent("UNIT_MAXHEALTH")
-    frame:RegisterEvent("PLAYER_ENTERING_WORLD")
-    frame:RegisterEvent("PLAYER_REGEN_ENABLED")
-    frame:RegisterEvent("PLAYER_REGEN_DISABLED")
 
     -- Function to update the progress values of the bar
     bar.UpdateProgress = function(self)
@@ -288,9 +187,72 @@ core.CreateMeterFrame = function()
 
         -- Update the text on the bar
         bar:UpdatePredictionText()
-
-        bar:Show()
     end
+
+
+
+    bar.UpdateDamage = function(self, event)
+        local eventInfo = {CombatLogGetCurrentEventInfo()}
+        local subEvent = eventInfo[2]
+        local destGUID = eventInfo[8]
+
+        if destGUID ~= UnitGUID("player") then
+            return false
+        end
+
+        local damage
+        if subEvent == "SPELL_AURA_APPLIED" then
+            if "Vampiric Blood" == eventInfo[13] then
+                vampiric_blood = 1.25
+            elseif "Luck of the Draw" == eventInfo[13] then
+                local auraInfo = core.GetUnitAura("Luck of the Draw")
+                if auraInfo then
+                    luck_of_the_draw = 1 + 0.05 * (auraInfo.stacks or 0)
+                end
+            end
+
+            self.lastAuraCheck = self.lastAuraCheck or GetTime()
+            if GetTime() > self.lastAuraCheck + 60 then
+                local auraInfo = core.GetUnitAura("Luck of the Draw")
+                if auraInfo then
+                    luck_of_the_draw = 1 + 0.05 * (auraInfo.stacks or 0)
+                else
+                    luck_of_the_draw = 1
+                end
+            end
+
+        elseif subEvent == "SPELL_AURA_REMOVED" then
+            if "Vampiric Blood" == eventInfo[13] then
+                vampiric_blood = 1
+            elseif "Luck of the Draw" == eventInfo[13] then
+                luck_of_the_draw = 1
+            end
+        elseif subEvent == "SPELL_HEAL" then
+            if "Death Strike" == eventInfo[13] then
+                frame.text:UpdateHealText(eventInfo[15])
+
+                C_Timer.After(1, function() 
+                    frame.text:UpdateHealText(nil)
+                end)
+            end
+        elseif subEvent == "SWING_DAMAGE" then
+            damage = eventInfo[12]
+        elseif subEvent == "SPELL_DAMAGE" or subEvent == "SPELL_PERIODIC_DAMAGE" then
+            damage = eventInfo[15]
+        end
+
+        if damage then
+            damage_taken = damage_taken + damage
+            C_Timer.After(core.config.WINDOW_TIME,
+                function()
+                    damage_taken = damage_taken - damage
+                    bar:UpdateBar()
+            end)
+        end
+
+        return true
+    end
+
 
     frame.text.UpdateHealText = function(self, value)
         if not value then
@@ -307,6 +269,77 @@ core.CreateMeterFrame = function()
         end
         self:Show()
     end
+
+    core.RedrawMeterFrame()
+    bar:UpdateBar()
+
+    -- Event handler for when buffs are updated
+    frame:SetScript("OnEvent", function(self, event, ...)
+
+        local changed = true
+        if event == "COMBAT_LOG_EVENT_UNFILTERED" then
+            changed = self.bar:UpdateDamage(event)
+
+        elseif event == "UNIT_MAXHEALTH" then
+            update_player_health()
+
+        elseif event == "PLAYER_ENTERING_WORLD" then
+            update_player_health()
+            damage_taken = 0
+            self:SetAlpha(core.config.OUT_OF_COMBAT_ALPHA)
+
+        elseif event == "PLAYER_REGEN_ENABLED" then
+            self:SetAlpha(core.config.OUT_OF_COMBAT_ALPHA)
+
+        elseif event == "PLAYER_REGEN_DISABLED" then
+            self:SetAlpha(core.config.IN_COMBAT_ALPHA)
+
+        end
+
+        if changed then
+            self.bar:UpdateBar()
+        end
+
+        return changed
+    end)
+
+    -- OnUpdate script to update buff durations in real-time
+    frame:SetScript("OnUpdate", function(self, elapsed)
+        self.lastUpdate = self.lastUpdate or GetTime()
+        if self.lastUpdate + 0.1 < GetTime() then
+            self.bar:UpdateBar()
+        end
+    end)
+
+    -- Drag functionality
+    bar:SetScript("OnDragStart", function(self)
+
+        if not core.config.UNLOCK_MOVING_BAR then
+            return
+        end
+
+        self.bar:StartMoving()
+    end)
+
+    bar:SetScript("OnDragStop", function(self)
+
+        if not core.config.UNLOCK_MOVING_BAR then
+            return
+        end
+
+        self.bar:StopMovingOrSizing()
+        -- Optionally save the new position for future use
+        local point, parent, relativePoint, xOffset, yOffset = self:GetPoint()
+        core.config.BAR_POINT_X = xOffset
+        core.config.BAR_POINT_Y = yOffset
+    end)
+
+    -- Register events to track buffs
+    frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+    frame:RegisterEvent("UNIT_MAXHEALTH")
+    frame:RegisterEvent("PLAYER_ENTERING_WORLD")
+    frame:RegisterEvent("PLAYER_REGEN_ENABLED")
+    frame:RegisterEvent("PLAYER_REGEN_DISABLED")
 
     core.created = true
 end

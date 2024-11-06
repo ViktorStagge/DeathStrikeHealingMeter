@@ -37,14 +37,14 @@ local function LoadConfig()
 
     -- Load saved values into core.config, falling back to defaults for missing values
     for key, option in pairs(core.configOptions) do
-        core.config[key] = DeathStrikeHealingMeterDB[key] or option.default
+        core.config[key] = DeathStrikeHealingMeterDB[key] or option.value
     end
 end
 
 -- Function to save the current config into the SavedVariables table
 local function SaveConfig()
-    for key, table in pairs(core.config) do
-        DeathStrikeHealingMeterDB[key] = table.value or table.default
+    for key, table in pairs(core.configOptions) do
+        DeathStrikeHealingMeterDB[key] = core.config[key] or table.default
     end
 end
 
@@ -101,42 +101,6 @@ local function CreateStringOption(labelText, configKey)
 end
 
 
--- Create a dropdown menu function
-    local function CreateDropdownOption(labelText, configKey, items)
-        local content = frame.scroll.content
-
-        -- Label for the dropdown
-        local label = content:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-        label:SetPoint("TOPLEFT", content.title, "BOTTOMLEFT", 0, content.current_position_y)
-        label:SetText(labelText)
-
-        -- Create the dropdown
-        local dropdown = CreateFrame("Frame", "DeathStrikeHealingOptionsDropdown_"..configKey, content, "UIDropDownMenuTemplate")
-        dropdown:SetPoint("LEFT", label, "LEFT", 200, 0)
-
-        UIDropDownMenu_SetWidth(dropdown, 150)
-        UIDropDownMenu_SetText(dropdown, core.config[configKey] or "Select an option")
-
-        -- Initialize the dropdown menu
-        UIDropDownMenu_Initialize(dropdown, function(self, level, menuList)
-            local info = UIDropDownMenu_CreateInfo()
-            for _, item in ipairs(items) do
-                info.text = item
-                info.func = function()
-                    UIDropDownMenu_SetSelectedName(dropdown, item)
-                    core.config[configKey] = item  -- Save selection to config
-                end
-                UIDropDownMenu_AddButton(info)
-            end
-        end)
-
-        -- Adjust position for the next item
-        content.current_position_y = content.current_position_y - 50
-        content["option__"..configKey] = dropdown
-    end
-
-
-
 -- Helper function to create string edit boxes
 local function CreateCheckBoxOption(labelText, configKey)
     local content = frame.scroll.content
@@ -159,6 +123,43 @@ local function CreateCheckBoxOption(labelText, configKey)
 
     return input
 end
+
+
+-- Create a dropdown menu function
+    local function CreateDropdownOption(labelText, configKey, items)
+        local content = frame.scroll.content
+
+        -- Label for the dropdown
+        local label = content:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+        label:SetPoint("TOPLEFT", content.title, "BOTTOMLEFT", 0, content.current_position_y)
+        label:SetText(labelText)
+
+        -- Create the dropdown
+        local dropdown = CreateFrame("Frame", "DeathStrikeHealingOptionsDropdown_"..configKey, content, "UIDropDownMenuTemplate")
+        dropdown:SetPoint("LEFT", label, "LEFT", 200, 0)
+
+        UIDropDownMenu_SetWidth(dropdown, 150)
+        UIDropDownMenu_SetSelectedName(dropdown, core.config[configKey] or "Select an option")
+
+        -- Initialize the dropdown menu
+        UIDropDownMenu_Initialize(dropdown, function(self, level, menuList)
+            local info = UIDropDownMenu_CreateInfo()
+            for _, item in ipairs(items) do
+                info.text = item
+                info.checked = (core.config[configKey] == item)  -- Mark the currently selected option as checked
+                info.func = function()
+                    UIDropDownMenu_SetSelectedName(dropdown, item)
+                    core.config[configKey] = item  -- Save selection to config
+                    core.RedrawMeterFrame()
+                end
+                UIDropDownMenu_AddButton(info)
+            end
+        end)
+
+        -- Adjust position for the next item
+        content.current_position_y = content.current_position_y - 50
+        content["option__"..configKey] = dropdown
+    end
 
 -- Function to create the options frame
 local function CreateOptionsFrame()
@@ -185,10 +186,20 @@ local function CreateOptionsFrame()
     -- OnShow event: When the frame is shown, update the input boxes with the current values
     frame:SetScript("OnShow", function()
         -- Update each input's editbox with the current value from core.config
-        for configKey, _ in pairs(core.config) do
-            if frame.scroll.content["option__"..configKey].SetText then
-                frame.scroll.content["option__"..configKey]:SetText(tostring(core.config[configKey]))
+        for configKey, option in pairs(core.configOptions) do
+            local subframe = frame.scroll.content["option__"..configKey]
+            if subframe.SetText then
+                subframe:SetText(tostring(core.config[configKey]))
+            elseif option.type == "dropdown" then
+                --UIDropDownMenu_SetText(subframe, core.config[configKey] or "Select an option")
+                --UIDropDownMenu_SetSelectedName(subframe, core.config[configKey])
             end
+        end
+    end)
+
+    frame:SetScript("OnHide", function()
+        if core.config.BAR_WIDTH then
+            SaveConfig()
         end
     end)
 
