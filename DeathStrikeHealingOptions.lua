@@ -37,14 +37,14 @@ local function LoadConfig()
 
     -- Load saved values into core.config, falling back to defaults for missing values
     for key, option in pairs(core.configOptions) do
-        core.config[key] = DeathStrikeHealingMeterDB[key] or option.value
+        core.config[key] = DeathStrikeHealingMeterDB[key] or option.default
     end
 end
 
 -- Function to save the current config into the SavedVariables table
 local function SaveConfig()
-    for key, table in pairs(core.configOptions) do
-        DeathStrikeHealingMeterDB[key] = core.config[key] or table.default
+    for key, option in pairs(core.configOptions) do
+        DeathStrikeHealingMeterDB[key] = core.config[key] or option.default
     end
 end
 
