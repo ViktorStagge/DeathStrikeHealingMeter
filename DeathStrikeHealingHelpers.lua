@@ -24,7 +24,7 @@ core.GetUnitAura = function(auraName)
     for i = 1, 50 do -- WoW typically has a maximum of 40 buffs per unit
         local name, icon, stacks, debuffType, duration, expirationTime, source, isStealable, nameplateShowPersonal, spellId, canApplyAura, isBossDebuff, castByPlayer, nameplateShowAll, timeMod = UnitAura("player", i, "HELPFUL")
         -- Stop the loop if no more auras are found
-        
+
         if not name then
             break
         end

@@ -4,45 +4,13 @@ local ADDON_NAME, core = ...;
 local frame
 local bar
 
--- Create internal states
-local damage_taken = 0
-local heal = 0
-local min_heal = 0
-local max_heal = 1
-local max_health = UnitHealthMax("player")
-
--- Create healing modifiers
-local ds_modifier = 1
-local vampiric_blood = 1
-local luck_of_the_draw = 1
-local name, _, _, _, rank, _, _, _, _, _ = GetTalentInfo(1, 12)
-if name and name == "Improved Death Strike" then
-    ds_modifier = rank * 0.15 + 1
-end
-
--- functions:
-local function update_player_health()
-    max_health = UnitHealthMax("player")
-    min_heal = max_health * 0.07
-    max_heal = max_health * core.config.BAR_WIDTH_MAXIMUM_HEALTH
-
-    return true
-end
-
-local function get_heal_modifier()
-    return ds_modifier * vampiric_blood * luck_of_the_draw
-end
-
-local function get_min_heal_modifier()
-    return vampiric_blood * luck_of_the_draw
-end
-
 
 local function RedrawHealFrame()
+    local config = core.GetConfig()
     if frame.text then
 
         frame.text:ClearAllPoints()
-        frame.text:SetFont("Fonts/FRIZQT__.TTF", core.config.HEAL_TEXT_FONT_SIZE, "OUTLINE")
+        frame.text:SetFont("Fonts/FRIZQT__.TTF", config.HEAL_TEXT_FONT_SIZE, "OUTLINE")
         frame.text:SetTextColor(0.1765, 0.9765, 0)
 
         -- Clear existing animations if they already exist to avoid overlapping
@@ -61,24 +29,24 @@ local function RedrawHealFrame()
         animation:SetDuration(0.2)           -- Duration of the animation in seconds
 
         -- Set Position and Offset based on the selected animation direction
-        if core.config.ANIMATION_DIRECTION == "RIGHT" then
+        if config.ANIMATION_DIRECTION == "RIGHT" then
             frame.text:SetPoint("LEFT", bar, "RIGHT", -15, 0)
             frame.text:SetJustifyH("LEFT")
-            frame.text:SetWidth(core.config.BAR_WIDTH + 50)  -- Increase width to accommodate text moving to the right
+            frame.text:SetWidth(config.BAR_WIDTH + 50)  -- Increase width to accommodate text moving to the right
             animation:SetOffset(18, 0)
-        elseif core.config.ANIMATION_DIRECTION == "UP" then
+        elseif config.ANIMATION_DIRECTION == "UP" then
             frame.text:SetPoint("RIGHT", bar, "RIGHT", 0, 0)
             frame.text:SetJustifyH("LEFT")
-            animation:SetOffset(0, core.config.BAR_HEIGHT)
-        elseif core.config.ANIMATION_DIRECTION == "DOWN" then
+            animation:SetOffset(0, config.BAR_HEIGHT)
+        elseif config.ANIMATION_DIRECTION == "DOWN" then
             frame.text:SetPoint("RIGHT", bar, "RIGHT", 0, 0)
             frame.text:SetJustifyH("LEFT")
-            animation:SetOffset(0, -core.config.BAR_HEIGHT)
-        elseif core.config.ANIMATION_DIRECTION == "LEFT" then
+            animation:SetOffset(0, -config.BAR_HEIGHT)
+        elseif config.ANIMATION_DIRECTION == "LEFT" then
             frame.text:SetPoint("LEFT", bar, "RIGHT", 0, 0)
             frame.text:SetJustifyH("LEFT")
-            frame.text:SetWidth(core.config.BAR_WIDTH + 50)  -- Width adjustment for leftward animation
-            animation:SetOffset(-core.config.BAR_WIDTH - 40, 0)
+            frame.text:SetWidth(config.BAR_WIDTH + 50)  -- Width adjustment for leftward animation
+            animation:SetOffset(-config.BAR_WIDTH - 40, 0)
         end
 
         -- Create a Pause Animation
@@ -93,39 +61,40 @@ local function RedrawBar()
     -- Here, you can put all the code that rebuilds or updates your addon’s UI elements
     -- Example of redrawing bars or frames based on new config values:
     if bar then
+        local config = core.GetConfig()
 
-        bar:SetSize(core.config.BAR_WIDTH, core.config.BAR_HEIGHT)
+        bar:SetSize(config.BAR_WIDTH, config.BAR_HEIGHT)
 
         -- Set the status bar texture
         local texture_path = core.default_texture_path
-        if core.config.BAR_TEXTURE ~= "default" then
-            texture_path = core.LSM:Fetch("statusbar", core.config.BAR_TEXTURE)
+        if config.BAR_TEXTURE ~= "default" then
+            texture_path = core.LSM:Fetch("statusbar", config.BAR_TEXTURE)
         end
         bar:SetStatusBarTexture(texture_path)
         bar:GetStatusBarTexture():SetHorizTile(false)
         bar:GetStatusBarTexture():SetVertTile(false)
         bar:SetStatusBarColor(1, 0, 0)  -- Colour of the Bar
-        bar:SetMinMaxValues(0, max_health)  -- Damage will be between 0 and player's maximum health
+        bar:SetMinMaxValues(0, bar.max_health)  -- Damage will be between 0 and player's maximum health
         bar:SetValue(0)
 
         -- Set the position of the bar
-        bar:SetPoint("CENTER", UIParent, "CENTER", core.config.BAR_POINT_X, core.config.BAR_POINT_Y)
+        bar:SetPoint("CENTER", UIParent, "CENTER", config.BAR_POINT_X, config.BAR_POINT_Y)
 
         -- Background for the bar
         bar.bg = bar:CreateTexture(nil, "BACKGROUND")
         bar.bg:SetAllPoints(true)
-        bar.bg:SetColorTexture(0, 0, 0, core.config.BAR_BACKGROUND_ALPHA)
+        bar.bg:SetColorTexture(0, 0, 0, config.BAR_BACKGROUND_ALPHA)
 
         -- Predicted Heal text
-        bar.text:SetFont("Fonts/FRIZQT__.TTF", core.config.PREDICTION_TEXT_FONT_SIZE, "OUTLINE")
+        bar.text:SetFont("Fonts/FRIZQT__.TTF", config.PREDICTION_TEXT_FONT_SIZE, "OUTLINE")
         bar.text:SetTextColor(0.1765, 0.9765, 0)
         bar.text:SetPoint("RIGHT", bar, "RIGHT", -2, 0)
         bar.text:SetJustifyH("RIGHT")
 
         -- Minimum Bar
-        bar.min_text:SetFont("Fonts/ARIALN.TTF", core.config.BAR_HEIGHT, "NONE")
+        bar.min_text:SetFont("Fonts/ARIALN.TTF", config.BAR_HEIGHT, "NONE")
         bar.min_text:SetTextColor(0.6, 0.6, 0.6)
-        bar.min_text:SetPoint("TOPLEFT", bar, "TOPLEFT", math.floor(core.config.BAR_WIDTH*0.07/core.config.BAR_WIDTH_MAXIMUM_HEALTH) - 2, 3)
+        bar.min_text:SetPoint("TOPLEFT", bar, "TOPLEFT", math.floor(config.BAR_WIDTH*0.07/config.BAR_WIDTH_MAXIMUM_HEALTH) - 2, 3)
         bar.min_text:SetText("|")
         bar.min_text:SetShadowOffset(0,0)
     end
@@ -141,12 +110,13 @@ end
 
 
 core.RedrawMeterFrame = function()
-    update_player_health()
+    frame.bar:update_player_health()
     RedrawBar()
     RedrawHealFrame()
 end
 
 core.CreateMeterFrame = function()
+    local config = core.GetConfig()
 
     frame = CreateFrame("Frame", "DeathStrikeTrackerFrame", UIParent)
     frame.bar = CreateFrame("StatusBar", "DamageBar", frame)
@@ -156,40 +126,51 @@ core.CreateMeterFrame = function()
     bar.text = bar:CreateFontString(nil, "OVERLAY")
     bar.min_text = bar:CreateFontString(nil, "OVERLAY")
 
-    -- Function to update the progress values of the bar
-    bar.UpdateProgress = function(self)
-        if not damage_taken then return end
+    -- Create internal states
+    bar.damage_taken = 0
+    bar.heal = 0
+    bar.min_heal = 0
+    bar.max_heal = 1
+    bar.max_health = UnitHealthMax("player")
 
-        local heal_from_damage = damage_taken * 0.2 * get_heal_modifier()
-        local _heal = min_heal * get_min_heal_modifier()
-
-        if heal_from_damage > _heal then
-            _heal = heal_from_damage
-        end
-        heal = _heal
-
-        local progress = floor(heal_from_damage)
-        local max_progress = floor(max_heal)
-
-        self:SetMinMaxValues(0, max_progress)
-        self:SetValue(progress)
+    -- Create healing modifiers
+    bar.ds_modifier = 1
+    bar.vampiric_blood = 1
+    bar.luck_of_the_draw = 1
+    local name, _, _, _, rank, _, _, _, _, _ = GetTalentInfo(1, 12)
+    if name and name == "Improved Death Strike" then
+        bar.ds_modifier = rank * 0.15 + 1
     end
+    
+    -- function to update the player's health stored:
+    bar.update_player_health = function(self)
+        self.max_health = UnitHealthMax("player")
+        self.min_heal = self.max_health * 0.07
+        self.max_heal = self.max_health * core.config.BAR_WIDTH_MAXIMUM_HEALTH.value
 
-    bar.UpdatePredictionText = function(self)
-        self.text:SetText(format_number(heal))
+        return true
     end
 
     -- Function to update the damage bar
     bar.UpdateBar = function(self)
 
-        -- Update the progress of the bar
-        bar:UpdateProgress()
+        local heal_from_damage = self.damage_taken * 0.2 * self.ds_modifier * self.vampiric_blood * self.luck_of_the_draw
+        local heal = self.min_heal * self.vampiric_blood * self.luck_of_the_draw
+
+        if heal_from_damage > heal then
+            heal = heal_from_damage
+        end
+        self.heal = heal
+
+        local progress = floor(heal_from_damage)
+        local max_progress = floor(self.max_heal)
+
+        self:SetMinMaxValues(0, max_progress)
+        self:SetValue(progress)
 
         -- Update the text on the bar
-        bar:UpdatePredictionText()
+        self.text:SetText(format_number(self.heal))
     end
-
-
 
     bar.UpdateDamage = function(self, event)
         local eventInfo = {CombatLogGetCurrentEventInfo()}
@@ -203,11 +184,11 @@ core.CreateMeterFrame = function()
         local damage
         if subEvent == "SPELL_AURA_APPLIED" then
             if "Vampiric Blood" == eventInfo[13] then
-                vampiric_blood = 1.25
+                self.vampiric_blood = 1.25
             elseif "Luck of the Draw" == eventInfo[13] then
                 local auraInfo = core.GetUnitAura("Luck of the Draw")
                 if auraInfo then
-                    luck_of_the_draw = 1 + 0.05 * (auraInfo.stacks or 0)
+                    self.luck_of_the_draw = 1 + 0.05 * (auraInfo.stacks or 0)
                 end
             end
 
@@ -215,17 +196,17 @@ core.CreateMeterFrame = function()
             if GetTime() > self.lastAuraCheck + 60 then
                 local auraInfo = core.GetUnitAura("Luck of the Draw")
                 if auraInfo then
-                    luck_of_the_draw = 1 + 0.05 * (auraInfo.stacks or 0)
+                    self.luck_of_the_draw = 1 + 0.05 * (auraInfo.stacks or 0)
                 else
-                    luck_of_the_draw = 1
+                    self.luck_of_the_draw = 1
                 end
             end
 
         elseif subEvent == "SPELL_AURA_REMOVED" then
             if "Vampiric Blood" == eventInfo[13] then
-                vampiric_blood = 1
+                self.vampiric_blood = 1
             elseif "Luck of the Draw" == eventInfo[13] then
-                luck_of_the_draw = 1
+                self.luck_of_the_draw = 1
             end
         elseif subEvent == "SPELL_HEAL" then
             if "Death Strike" == eventInfo[13] then
@@ -242,10 +223,10 @@ core.CreateMeterFrame = function()
         end
 
         if damage then
-            damage_taken = damage_taken + damage
-            C_Timer.After(core.config.WINDOW_TIME,
+            self.damage_taken = self.damage_taken + damage
+            C_Timer.After(config.WINDOW_TIME,
                 function()
-                    damage_taken = damage_taken - damage
+                    self.damage_taken = self.damage_taken - damage
                     bar:UpdateBar()
             end)
         end
@@ -259,13 +240,13 @@ core.CreateMeterFrame = function()
             self:SetText("")
             self:Hide()
             self.animations:Stop()
-            self:SetFont("Fonts/FRIZQT__.TTF", core.config.HEAL_TEXT_FONT_SIZE, "OUTLINE")
+            self:SetFont("Fonts/FRIZQT__.TTF", config.HEAL_TEXT_FONT_SIZE, "OUTLINE")
             return
         end
         self.animations:Play()
         self:SetText(format_number(value))
-        if heal > core.config.LARGE_HEAL_THRESHOLD * max_health then
-            self:SetFont("Fonts/FRIZQT__.TTF", core.config.HEAL_TEXT_LARGE_FONT_SIZE, "OUTLINE")
+        if frame.bar.heal > config.LARGE_HEAL_THRESHOLD * frame.bar.max_health then
+            self:SetFont("Fonts/FRIZQT__.TTF", config.HEAL_TEXT_LARGE_FONT_SIZE, "OUTLINE")
         end
         self:Show()
     end
@@ -281,18 +262,18 @@ core.CreateMeterFrame = function()
             changed = self.bar:UpdateDamage(event)
 
         elseif event == "UNIT_MAXHEALTH" then
-            update_player_health()
+            self.bar:update_player_health()
 
         elseif event == "PLAYER_ENTERING_WORLD" then
-            update_player_health()
-            damage_taken = 0
-            self:SetAlpha(core.config.OUT_OF_COMBAT_ALPHA)
+            self.bar:update_player_health()
+            self.bar.damage_taken = 0
+            self:SetAlpha(config.OUT_OF_COMBAT_ALPHA)
 
         elseif event == "PLAYER_REGEN_ENABLED" then
-            self:SetAlpha(core.config.OUT_OF_COMBAT_ALPHA)
+            self:SetAlpha(config.OUT_OF_COMBAT_ALPHA)
 
         elseif event == "PLAYER_REGEN_DISABLED" then
-            self:SetAlpha(core.config.IN_COMBAT_ALPHA)
+            self:SetAlpha(config.IN_COMBAT_ALPHA)
 
         end
 
@@ -314,24 +295,24 @@ core.CreateMeterFrame = function()
     -- Drag functionality
     bar:SetScript("OnDragStart", function(self)
 
-        if not core.config.UNLOCK_MOVING_BAR then
+        if not core.config.UNLOCK_MOVING_BAR.value then
             return
         end
 
-        self.bar:StartMoving()
+        self:StartMoving()
     end)
 
     bar:SetScript("OnDragStop", function(self)
 
-        if not core.config.UNLOCK_MOVING_BAR then
+        if not core.config.UNLOCK_MOVING_BAR.value then
             return
         end
 
-        self.bar:StopMovingOrSizing()
+        self:StopMovingOrSizing()
         -- Optionally save the new position for future use
         local point, parent, relativePoint, xOffset, yOffset = self:GetPoint()
-        core.config.BAR_POINT_X = xOffset
-        core.config.BAR_POINT_Y = yOffset
+        core.config.BAR_POINT_X.value = xOffset
+        core.config.BAR_POINT_Y.value = yOffset
     end)
 
     -- Register events to track buffs

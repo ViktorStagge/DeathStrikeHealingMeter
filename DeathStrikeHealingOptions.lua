@@ -3,8 +3,8 @@ local ADDON_NAME, core = ...;
 -- Load LibSharedMedia
 core.LSM = LibStub("LibSharedMedia-3.0")
 
-core.configOptions = {
-    UNLOCK_MOVING_BAR = { type = "checkbox", label = "Unlock the Frame (move it)", default = false },
+core.config = {
+    UNLOCK_MOVING_BAR = { type = "checkbox", label = "Unlock the Frame (move it)", default = true },
     BAR_WIDTH = { type = "float", label = "Bar Width", default = 130 },
     BAR_HEIGHT = { type = "float", label = "Bar Height", default = 30 },
     BAR_WIDTH_MAXIMUM_HEALTH = { type = "float", label = "Bar Width (Max Health)", default = 0.4 },
@@ -22,7 +22,6 @@ core.configOptions = {
     ANIMATION_DIRECTION = { type = "dropdown", label = "Animation", options = { "UP", "DOWN", "RIGHT", "LEFT" }, default = "RIGHT" },
 }
 
-core.config = {}
 core.created = false
 core.default_texture_path = "Interface/Addons/DeathStrikeHealingMeter/Media/statusbar/bar_background.tga"
 
@@ -32,20 +31,38 @@ local frame
 local function LoadConfig()
     -- If DeathStrikeHealingMeterDB doesn't exist, initialize it with default values
     if not DeathStrikeHealingMeterDB then
+        print("DeathStrikeHealingMeter: No Existing Database")
         DeathStrikeHealingMeterDB = {}
     end
 
     -- Load saved values into core.config, falling back to defaults for missing values
-    for key, option in pairs(core.configOptions) do
-        core.config[key] = DeathStrikeHealingMeterDB[key] or option.default
+    for key, option in pairs(core.config) do
+        option.value = DeathStrikeHealingMeterDB[key] or option.default
     end
+
 end
 
 -- Function to save the current config into the SavedVariables table
 local function SaveConfig()
-    for key, option in pairs(core.configOptions) do
-        DeathStrikeHealingMeterDB[key] = core.config[key] or option.default
+    for key, option in pairs(core.config) do
+        DeathStrikeHealingMeterDB[key] = option.value or option.default
     end
+end
+
+-- Function to save the one config value into the SavedVariables table
+local function SaveConfigKey(key)
+    local option = core.config[key]
+    DeathStrikeHealingMeterDB[key] = option.value or option.default
+end
+
+
+-- Function to load the current config as a read-only table
+core.GetConfig = function()
+    local config = {}
+    for key, option in pairs(core.config) do
+        config[key] = option.value
+    end
+    return config
 end
 
 
@@ -64,6 +81,7 @@ local function CreateFloatOption(labelText, configKey)
 
     input:SetScript("OnEnterPressed", function(self)
         core.config[configKey].value = tonumber(self:GetText()) or core.config[configKey].value
+        SaveConfigKey(configKey)
         self:ClearFocus()
         core.RedrawMeterFrame()
     end)
@@ -90,7 +108,8 @@ local function CreateStringOption(labelText, configKey)
     input:SetJustifyH("LEFT")
 
     input:SetScript("OnEnterPressed", function(self)
-        core.config[configKey] = self:GetText() or core.config[configKey]
+        core.config[configKey].value = self:GetText() or core.config[configKey].value
+        SaveConfigKey(configKey)
         self:ClearFocus()
         core.RedrawMeterFrame()
     end)
@@ -111,11 +130,12 @@ local function CreateCheckBoxOption(labelText, configKey)
     -- Checkbox
     local input = CreateFrame("CheckButton", nil, content, "UICheckButtonTemplate")
     input:SetPoint("LEFT", label, "LEFT", 200, 0)
-    input:SetChecked(core.config.UNLOCK_MOVING_BAR)
+    input:SetChecked(core.config[configKey].value)
 
     input:SetScript("OnClick", function(self)
-        core.config.UNLOCK_MOVING_BAR = self:GetChecked()
-        core.unlock_frame(core.config.UNLOCK_MOVING_BAR)
+        core.config[configKey].value = self:GetChecked()
+        SaveConfigKey(configKey)
+        core.unlock_frame(core.config[configKey].value)
     end)
 
     content.current_position_y = content.current_position_y - 40
@@ -139,17 +159,18 @@ end
         dropdown:SetPoint("LEFT", label, "LEFT", 200, 0)
 
         UIDropDownMenu_SetWidth(dropdown, 150)
-        UIDropDownMenu_SetSelectedName(dropdown, core.config[configKey] or "Select an option")
+        UIDropDownMenu_SetSelectedName(dropdown, core.config[configKey].value or "Select an option")
 
         -- Initialize the dropdown menu
         UIDropDownMenu_Initialize(dropdown, function(self, level, menuList)
             local info = UIDropDownMenu_CreateInfo()
             for _, item in ipairs(items) do
                 info.text = item
-                info.checked = (core.config[configKey] == item)  -- Mark the currently selected option as checked
+                info.checked = (core.config[configKey].value == item)  -- Mark the currently selected option as checked
                 info.func = function()
                     UIDropDownMenu_SetSelectedName(dropdown, item)
-                    core.config[configKey] = item  -- Save selection to config
+                    core.config[configKey].value = item  -- Save selection to config
+                    SaveConfigKey(configKey)  -- Save selection to database
                     core.RedrawMeterFrame()
                 end
                 UIDropDownMenu_AddButton(info)
@@ -185,11 +206,11 @@ local function CreateOptionsFrame()
 
     -- OnShow event: When the frame is shown, update the input boxes with the current values
     frame:SetScript("OnShow", function()
-        -- Update each input's editbox with the current value from core.config
-        for configKey, option in pairs(core.configOptions) do
+        -- Update each input's editbox with the current value from config
+        for configKey, option in pairs(core.config) do
             local subframe = frame.scroll.content["option__"..configKey]
             if subframe.SetText then
-                subframe:SetText(tostring(core.config[configKey]))
+                subframe:SetText(tostring(option.value))
             elseif option.type == "dropdown" then
                 --UIDropDownMenu_SetText(subframe, core.config[configKey] or "Select an option")
                 --UIDropDownMenu_SetSelectedName(subframe, core.config[configKey])
@@ -198,38 +219,10 @@ local function CreateOptionsFrame()
     end)
 
     frame:SetScript("OnHide", function()
-        if core.config.BAR_WIDTH then
+        if core.config.BAR_WIDTH.value then
             SaveConfig()
         end
     end)
-
-    -- OnEvent event: reloads the UI on demand
-    frame:SetScript("OnEvent", function(self, event, arg1)
-        if event == "ADDON_LOADED" then
-
-            local texture_path = core.LSM:Fetch("statusbar", core.config.BAR_TEXTURE)  -- Fetch the texture path from LibSharedMedia
-            if not core.texture_path then
-                core.texture_path = texture_path
-            end
-
-            if core.texture_path ~= texture_path and core.created then
-                core.texture_path = texture_path
-                core.RedrawMeterFrame()
-            end
-
-            if arg1 == ADDON_NAME then
-                LoadConfig()
-                core.CreateMeterFrame()
-            end
-
-        elseif event == "PLAYER_LOGOUT" then
-            SaveConfig()
-        end
-    end)
-
-    -- Create the UI when the entire Addon has finished loading
-    frame:RegisterEvent("ADDON_LOADED")
-    frame:RegisterEvent("PLAYER_LOGOUT")
 
     -- Add float options for the configuration variables
     CreateCheckBoxOption("Unlock the Frame (move it):", "UNLOCK_MOVING_BAR")
@@ -257,8 +250,36 @@ local function CreateOptionsFrame()
     Settings.RegisterAddOnCategory(category)
 end
 
--- Call the function to create the options frame
-local _, class_name, _ = UnitClass("player");
-if class_name == "DEATHKNIGHT" then
-    CreateOptionsFrame()
-end
+local loadFrame = CreateFrame("Frame")
+
+-- OnEvent event: reloads the UI on demand
+loadFrame:SetScript("OnEvent", function(self, event, arg1)
+    if event == "ADDON_LOADED" then
+
+        local texture_path = core.LSM:Fetch("statusbar", core.config.BAR_TEXTURE.value)  -- Fetch the texture path from LibSharedMedia
+        if not core.texture_path then
+            core.texture_path = texture_path
+        end
+
+        if core.texture_path ~= texture_path and core.created then
+            core.texture_path = texture_path
+            core.RedrawMeterFrame()
+        end
+
+        if arg1 == ADDON_NAME then
+            LoadConfig()
+            CreateOptionsFrame()
+            core.CreateMeterFrame()
+        end
+
+    elseif event == "PLAYER_LOGOUT" then
+        if core.created then
+            SaveConfig()
+        end
+    end
+end)
+
+-- Create the UI when the entire Addon has finished loading
+loadFrame:RegisterEvent("ADDON_LOADED")
+loadFrame:RegisterEvent("PLAYER_LOGOUT")
+
