@@ -141,7 +141,7 @@ core.CreateMeterFrame = function()
     if name and name == "Improved Death Strike" then
         bar.ds_modifier = rank * 0.15 + 1
     end
-    
+
     -- function to update the player's health stored:
     bar.update_player_health = function(self)
         self.max_health = UnitHealthMax("player")
@@ -336,8 +336,6 @@ core.unlock_frame = function(enabled)
         bar:RegisterForDrag()
     end
 end
-<<<<<<< HEAD
-=======
 
 local _, class_id = UnitClassBase("player");
 if class_id == 6 then
@@ -375,4 +373,3 @@ if class_id == 6 then
     loadFrame:RegisterEvent("ADDON_LOADED")
     loadFrame:RegisterEvent("PLAYER_LOGOUT")
 end
->>>>>>> e6cda12 (add DK criteria)
