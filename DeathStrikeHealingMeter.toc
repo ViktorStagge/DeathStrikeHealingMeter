@@ -6,11 +6,6 @@
 ## Version: 1.0
 
 Libs/LibSharedMedia-3.0/LibSharedMedia-3.0.lua
-<<<<<<< HEAD
-DeathStrikeHealingHelpers.lua
-DeathStrikeHealingOptions.lua
-=======
 helpers.lua
 options.lua
->>>>>>> e6cda12 (add DK criteria)
 DeathStrikeHealingMeter.lua
