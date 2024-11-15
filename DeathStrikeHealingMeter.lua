@@ -336,3 +336,43 @@ core.unlock_frame = function(enabled)
         bar:RegisterForDrag()
     end
 end
+<<<<<<< HEAD
+=======
+
+local _, class_id = UnitClassBase("player");
+if class_id == 6 then
+
+    local loadFrame = CreateFrame("Frame")
+
+    -- OnEvent event: reloads the UI on demand
+    loadFrame:SetScript("OnEvent", function(self, event, arg1)
+        if event == "ADDON_LOADED" then
+
+            local texture_path = core.LSM:Fetch("statusbar", core.config.BAR_TEXTURE.value)  -- Fetch the texture path from LibSharedMedia
+            if not core.texture_path then
+                core.texture_path = texture_path
+            end
+
+            if core.texture_path ~= texture_path and core.created then
+                core.texture_path = texture_path
+                core.RedrawMeterFrame()
+            end
+
+            if arg1 == ADDON_NAME then
+                core.LoadConfig()
+                core.CreateOptionsFrame()
+                core.CreateMeterFrame()
+            end
+
+        elseif event == "PLAYER_LOGOUT" then
+            if core.created then
+                core.SaveConfig()
+            end
+        end
+    end)
+
+    -- Create the UI when the entire Addon has finished loading
+    loadFrame:RegisterEvent("ADDON_LOADED")
+    loadFrame:RegisterEvent("PLAYER_LOGOUT")
+end
+>>>>>>> e6cda12 (add DK criteria)
