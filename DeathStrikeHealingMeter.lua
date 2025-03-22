@@ -235,8 +235,6 @@ core.CreateMeterFrame = function()
                     bar:UpdateBar()
             end)
         end
-
-        return true
     end
 
 
@@ -289,7 +287,7 @@ core.CreateMeterFrame = function()
     -- OnUpdate script to update buff durations in real-time
     frame:SetScript("OnUpdate", function(self, elapsed)
         self.lastUpdate = self.lastUpdate or GetTime()
-        if self.lastUpdate + 0.05 < GetTime() then
+        if self.lastUpdate + 0.03 < GetTime() then
             self.bar:UpdateBar()
         end
     end)
