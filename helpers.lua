@@ -29,7 +29,6 @@ core.GetUnitAura = function(auraName)
             break
         end
 
-        --print(name)
         -- Check if this is the "Vampiric Blood" aura
         if name == auraName then
             auraInfo = {
@@ -44,12 +43,9 @@ core.GetUnitAura = function(auraName)
 
             -- Use the spell ID to fetch specific spell info
             local spellName, _, _, _, _, _, tooltipValue1, _, _ = GetSpellInfo(spellId)
-            --core.print_table({GetSpellInfo(spellId)})
             if tooltipValue1 then
                 auraInfo.tooltipValue1 = tonumber(tooltipValue1) -- spellDescription:match("%d+")  -- Extract the first numeric value from description
             end
-
-            --core.print_table(auraInfo)
 
             break -- Exit the loop once found
         end

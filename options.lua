@@ -31,7 +31,6 @@ local frame
 core.LoadConfig = function()
     -- If DeathStrikeHealingMeterDB doesn't exist, initialize it with default values
     if not DeathStrikeHealingMeterDB then
-        print("DeathStrikeHealingMeter: No Existing Database")
         DeathStrikeHealingMeterDB = {}
     end
 
