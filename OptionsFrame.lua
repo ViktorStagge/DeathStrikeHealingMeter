@@ -222,7 +222,7 @@ core.CreateOptionsFrame = function()
     content.title:SetText(FRAME_TITLE)
 
     -- Reload Notice
-    local reloadNotice = frame.scroll.content:CreateFontString(nil, "ARTWORK", "GameFontDisableMedium")
+    local reloadNotice = frame.scroll.content:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
     reloadNotice:SetPoint("TOPLEFT", frame.scroll.content.title, "BOTTOMLEFT", 0, -5)
     reloadNotice:SetText("Some changes may require a /reload to take effect")
 
