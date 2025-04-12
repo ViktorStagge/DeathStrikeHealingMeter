@@ -43,4 +43,3 @@ From here you can customize:
 
 ```bash
 /reload                     - Reloads the UI
-/dshm or /deathstrikeheal   - Opens the options panel
