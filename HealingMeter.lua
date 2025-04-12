@@ -151,7 +151,7 @@ core.CreateMeterFrame = function()
     bar.UpdatePlayerHealth = function(self)
         self.max_health = UnitHealthMax("player")
         self.min_heal = self.max_health * 0.07
-        self.max_heal = self.max_health * core.config.BAR_WIDTH_MAXIMUM_HEALTH.value
+        self.max_heal = self.max_health * core.config.BAR_WIDTH_MAXIMUM_HEALTH
 
         return true
     end
@@ -295,7 +295,7 @@ core.CreateMeterFrame = function()
     -- Drag functionality
     bar:SetScript("OnDragStart", function(self)
 
-        if not core.config.UNLOCK_MOVING_BAR.value then
+        if not core.config.UNLOCK_MOVING_BAR then
             return
         end
 
@@ -304,15 +304,15 @@ core.CreateMeterFrame = function()
 
     bar:SetScript("OnDragStop", function(self)
 
-        if not core.config.UNLOCK_MOVING_BAR.value then
+        if not core.config.UNLOCK_MOVING_BAR then
             return
         end
 
         self:StopMovingOrSizing()
         -- Optionally save the new position for future use
         local point, parent, relativePoint, xOffset, yOffset = self:GetPoint()
-        core.config.BAR_POINT_X.value = xOffset
-        core.config.BAR_POINT_Y.value = yOffset
+        core.config.BAR_POINT_X = xOffset
+        core.config.BAR_POINT_Y = yOffset
     end)
 
     -- Register events to track buffs
@@ -345,8 +345,9 @@ if class_id == 6 then
     -- OnEvent event: reloads the UI on demand
     loadFrame:SetScript("OnEvent", function(self, event, arg1)
         if event == "ADDON_LOADED" then
+            core.config = core.GetConfig()
 
-            local texture_path = core.LSM:Fetch("statusbar", core.config.BAR_TEXTURE.value)  -- Fetch the texture path from LibSharedMedia
+            local texture_path = core.LSM:Fetch("statusbar", core.config.BAR_TEXTURE)  -- Fetch the texture path from LibSharedMedia
             if not core.texture_path then
                 core.texture_path = texture_path
             end
@@ -357,19 +358,13 @@ if class_id == 6 then
             end
 
             if arg1 == ADDON_NAME then
-                core.LoadConfig()
                 core.CreateOptionsFrame()
                 core.CreateMeterFrame()
             end
 
-        elseif event == "PLAYER_LOGOUT" then
-            if core.created then
-                core.SaveConfig()
-            end
         end
     end)
 
     -- Create the UI when the entire Addon has finished loading
     loadFrame:RegisterEvent("ADDON_LOADED")
-    loadFrame:RegisterEvent("PLAYER_LOGOUT")
 end

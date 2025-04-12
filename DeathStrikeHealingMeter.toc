@@ -6,6 +6,7 @@
 ## Version: 1.0
 
 Libs/LibSharedMedia-3.0/LibSharedMedia-3.0.lua
-helpers.lua
-options.lua
-DeathStrikeHealingMeter.lua
+Helpers.lua
+Options.lua
+OptionsFrame.lua
+HealingMeter.lua
